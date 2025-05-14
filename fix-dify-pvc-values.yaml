@@ -1,0 +1,14 @@
+api:
+  persistence:
+    persistentVolumeClaim:
+      accessModes: ReadWriteOnce
+
+worker:
+  persistence:
+    persistentVolumeClaim:
+      accessModes: ReadWriteOnce
+
+pluginDaemon:
+  persistence:
+    persistentVolumeClaim:
+      accessModes: ReadWriteOnce
