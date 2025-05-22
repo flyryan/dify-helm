@@ -1,0 +1,14 @@
+# Set image versions to match previous deployment
+image:
+  api:
+    repository: langgenius/dify-api
+    tag: "1.4.0"
+  web:
+    repository: langgenius/dify-web
+    tag: "1.4.0"
+  sandbox:
+    repository: langgenius/dify-sandbox
+    tag: "0.2.11"
+  pluginDaemon:
+    repository: langgenius/dify-plugin-daemon
+    tag: "0.0.7-local"
