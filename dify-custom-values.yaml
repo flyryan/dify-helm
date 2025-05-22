@@ -1,0 +1,82 @@
+# Dify Custom Values
+# This file combines all custom values for Helm upgrades
+
+# Image versions
+image:
+  api:
+    repository: langgenius/dify-api
+    tag: "1.4.0"
+  web:
+    repository: langgenius/dify-web
+    tag: "1.4.0"
+  sandbox:
+    repository: langgenius/dify-sandbox
+    tag: "0.2.12"
+  pluginDaemon:
+    repository: langgenius/dify-plugin-daemon
+    tag: "0.1.0-local"
+
+# API configuration
+api:
+  # Environment variables
+  extraEnv:
+    - name: CONSOLE_WEB_URL
+      value: "https://trendgpt-difytest.testenvs.click"
+    - name: INIT_PASSWORD
+      value: "password"
+    - name: CONSOLE_API_URL
+      value: "https://trendgpt-difytest.testenvs.click"
+    - name: SERVICE_API_URL
+      value: "https://trendgpt-difytest.testenvs.click"
+    - name: APP_WEB_URL
+      value: "https://trendgpt-difytest.testenvs.click"
+    - name: FILES_URL
+      value: "https://trendgpt-difytest.testenvs.click"
+  # Persistence configuration
+  persistence:
+    persistentVolumeClaim:
+      accessModes: ReadWriteOnce
+      size: 16Gi
+
+# Worker configuration
+worker:
+  persistence:
+    persistentVolumeClaim:
+      accessModes: ReadWriteOnce
+
+# Plugin Daemon configuration
+pluginDaemon:
+  persistence:
+    persistentVolumeClaim:
+      accessModes: ReadWriteOnce
+      size: 16Gi
+
+# PostgreSQL configuration
+postgresql:
+  primary:
+    persistence:
+      size: 64Gi
+  readReplicas:
+    persistence:
+      size: 32Gi
+
+# Redis configuration
+redis:
+  master:
+    persistence:
+      size: 16Gi
+  replica:
+    persistence:
+      size: 16Gi
+
+# Weaviate configuration
+weaviate:
+  storage:
+    size: 64Gi
+  resources:
+    requests:
+      cpu: '1'
+      memory: '2Gi'
+    limits:
+      cpu: '4'
+      memory: '8Gi'
