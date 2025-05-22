@@ -1,0 +1,16 @@
+# Add specified environment variables to API container only
+# without modifying the PVCs
+api:
+  extraEnv:
+    - name: CONSOLE_WEB_URL
+      value: "https://trendgpt-difytest.testenvs.click"
+    - name: INIT_PASSWORD
+      value: "password"
+    - name: CONSOLE_API_URL
+      value: "https://trendgpt-difytest.testenvs.click"
+    - name: SERVICE_API_URL
+      value: "https://trendgpt-difytest.testenvs.click"
+    - name: APP_WEB_URL
+      value: "https://trendgpt-difytest.testenvs.click"
+    - name: FILES_URL
+      value: "https://trendgpt-difytest.testenvs.click"

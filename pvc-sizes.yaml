@@ -1,0 +1,37 @@
+# Set PVC sizes to match or exceed current sizes
+api:
+  persistence:
+    persistentVolumeClaim:
+      accessModes: ReadWriteOnce
+      size: 16Gi
+
+worker:
+  persistence:
+    persistentVolumeClaim:
+      accessModes: ReadWriteOnce
+
+pluginDaemon:
+  persistence:
+    persistentVolumeClaim:
+      accessModes: ReadWriteOnce
+      size: 16Gi
+
+postgresql:
+  primary:
+    persistence:
+      size: 64Gi
+  readReplicas:
+    persistence:
+      size: 32Gi
+
+redis:
+  master:
+    persistence:
+      size: 16Gi
+  replica:
+    persistence:
+      size: 16Gi
+
+weaviate:
+  storage:
+    size: 64Gi

@@ -1,0 +1,9 @@
+# Increase resources for Weaviate even more
+weaviate:
+  resources:
+    requests:
+      cpu: '1'
+      memory: '2Gi'
+    limits:
+      cpu: '4'
+      memory: '8Gi'
