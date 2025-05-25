@@ -32,6 +32,8 @@ api:
       value: "https://trendgpt-difytest.testenvs.click"
     - name: FILES_URL
       value: "https://trendgpt-difytest.testenvs.click"
+    - name: LITELLM_MODIFY_PARAMS
+      value: "true"
   # Persistence configuration
   persistence:
     persistentVolumeClaim:
@@ -40,6 +42,9 @@ api:
 
 # Worker configuration
 worker:
+  extraEnv:
+    - name: LITELLM_MODIFY_PARAMS
+      value: "true"
   persistence:
     persistentVolumeClaim:
       accessModes: ReadWriteOnce
@@ -75,8 +80,15 @@ weaviate:
     size: 64Gi
   resources:
     requests:
-      cpu: '1'
-      memory: '2Gi'
+      cpu: '2'
+      memory: '4Gi'
     limits:
       cpu: '4'
-      memory: '8Gi'
+      memory: '12Gi'
+  env:
+    # Set GOMEMLIMIT to 11GiB (slightly below the 12Gi limit) to prevent OOM
+    GOMEMLIMIT: 11GiB
+    # Reduce GC aggressiveness to allow more memory usage before triggering GC
+    GOGC: 200
+    # Increase query result limit if needed
+    QUERY_MAXIMUM_RESULTS: 100000
