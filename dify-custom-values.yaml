@@ -48,6 +48,17 @@ worker:
   persistence:
     persistentVolumeClaim:
       accessModes: ReadWriteOnce
+  # Force worker to run on same node as API for PVC sharing
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: component
+            operator: In
+            values:
+            - api
+        topologyKey: kubernetes.io/hostname
 
 # Plugin Daemon configuration
 pluginDaemon:
