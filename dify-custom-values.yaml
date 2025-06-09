@@ -5,16 +5,16 @@
 image:
   api:
     repository: langgenius/dify-api
-    tag: "1.4.0"
+    tag: "v141-hotfix"
   web:
     repository: langgenius/dify-web
-    tag: "1.4.0"
+    tag: "v141-hotfix"
   sandbox:
     repository: langgenius/dify-sandbox
-    tag: "0.2.12"
+    tag: "fix-vulns"
   pluginDaemon:
     repository: langgenius/dify-plugin-daemon
-    tag: "0.1.0-local"
+    tag: "0.1.1-local"
 
 # API configuration
 api:
