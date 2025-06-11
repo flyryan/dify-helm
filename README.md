@@ -5,6 +5,12 @@
 
 Deploy [langgenius/dify](https://github.com/langgenius/dify), an LLM based chat bot app on kubernetes with helm chart.
 
+## Additional Resources
+
+Some functionality requires resources outside the main Helm chart. See the `additional-resources/` directory for:
+- Keepalive CronJob to prevent nginx timeout issues
+- Other deployment-specific configurations
+
 ## Installation
 ```
 helm repo add dify https://borispolonsky.github.io/dify-helm
