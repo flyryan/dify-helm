@@ -124,16 +124,28 @@ web:
       cpu: '2'
       memory: '4Gi'
 
-# Ingress configuration - disabled for initial deployment
+# Ingress configuration - Internal ALB for secure access
 ingress:
-  enabled: false
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/group.name: 'rdsec.internal-services'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/target-type: 'ip'
+    alb.ingress.kubernetes.io/scheme: internal
+  hosts:
+    - host: "trendgptdify.runtime.trendmicro.com"
+      paths:
+        - path: /
+          pathType: Prefix
 
 # Service Configuration - ClusterIP for internal ingress access
 service:
   enabled: true
   name: dify
   type: ClusterIP
-  port: 80
+  port: 443
 
 # Keep-alive CronJob to prevent nginx timeout issues
 keepalive:
