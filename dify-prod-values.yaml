@@ -1,0 +1,142 @@
+# Dify Production Environment Values
+# Deployment to trendgpt-dify namespace in new environment
+
+# Image versions (using stable hotfix versions)
+image:
+  api:
+    repository: langgenius/dify-api
+    tag: "v141-hotfix"
+  web:
+    repository: langgenius/dify-web
+    tag: "v141-hotfix"
+  sandbox:
+    repository: langgenius/dify-sandbox
+    tag: "fix-vulns"
+  pluginDaemon:
+    repository: langgenius/dify-plugin-daemon
+    tag: "0.1.1-local"
+
+# API configuration
+api:
+  # Environment variables - Updated for internal ingress access
+  extraEnv:
+    - name: CONSOLE_WEB_URL
+      value: "https://trendgptdify.runtime.trendmicro.com"
+    - name: INIT_PASSWORD
+      value: "password"
+    - name: CONSOLE_API_URL
+      value: "https://trendgptdify.runtime.trendmicro.com"
+    - name: SERVICE_API_URL
+      value: "https://trendgptdify.runtime.trendmicro.com"
+    - name: APP_WEB_URL
+      value: "https://trendgptdify.runtime.trendmicro.com"
+    - name: FILES_URL
+      value: "https://trendgptdify.runtime.trendmicro.com"
+    - name: LITELLM_MODIFY_PARAMS
+      value: "true"
+  # Persistence configuration
+  persistence:
+    persistentVolumeClaim:
+      accessModes: ReadWriteOnce
+      size: 16Gi
+
+# Worker configuration
+worker:
+  extraEnv:
+    - name: LITELLM_MODIFY_PARAMS
+      value: "true"
+  persistence:
+    persistentVolumeClaim:
+      accessModes: ReadWriteOnce
+  # Force worker to run on same node as API for PVC sharing
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: component
+            operator: In
+            values:
+            - api
+        topologyKey: kubernetes.io/hostname
+
+# Plugin Daemon configuration
+pluginDaemon:
+  persistence:
+    persistentVolumeClaim:
+      accessModes: ReadWriteOnce
+      size: 16Gi
+
+# PostgreSQL configuration
+postgresql:
+  primary:
+    persistence:
+      size: 64Gi
+  readReplicas:
+    persistence:
+      size: 32Gi
+
+# Redis configuration
+redis:
+  master:
+    persistence:
+      size: 16Gi
+  replica:
+    persistence:
+      size: 16Gi
+
+# Weaviate configuration
+weaviate:
+  storage:
+    size: 64Gi
+  resources:
+    requests:
+      cpu: '4'
+      memory: '8Gi'
+    limits:
+      cpu: '8'
+      memory: '16Gi'
+  env:
+    # Set GOMEMLIMIT to 15GiB (slightly below the 16Gi limit) to prevent OOM
+    GOMEMLIMIT: 15GiB
+    # Reduce GC aggressiveness to allow more memory usage before triggering GC
+    GOGC: 200
+    # Increase query result limit if needed
+    QUERY_MAXIMUM_RESULTS: 100000
+
+# Proxy configuration - optimize for better performance
+proxy:
+  resources:
+    requests:
+      cpu: '500m'
+      memory: '1Gi'
+    limits:
+      cpu: '2'
+      memory: '4Gi'
+
+# Web configuration - optimize for better performance  
+web:
+  resources:
+    requests:
+      cpu: '500m'
+      memory: '1Gi'
+    limits:
+      cpu: '2'
+      memory: '4Gi'
+
+# Ingress configuration - disabled for initial deployment
+ingress:
+  enabled: false
+
+# Service Configuration - ClusterIP for internal ingress access
+service:
+  enabled: true
+  name: dify
+  type: ClusterIP
+  port: 80
+
+# Keep-alive CronJob to prevent nginx timeout issues
+keepalive:
+  enabled: true
+  schedule: "* * * * *"  # Every minute
+  image: curlimages/curl:latest
