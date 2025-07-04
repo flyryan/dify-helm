@@ -1,0 +1,33 @@
+# This CronJob prevents nginx timeout issues by sending periodic health checks
+# Apply this after deploying the main Dify Helm chart:
+# kubectl apply -f additional-resources/keepalive-cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dify-keepalive
+  namespace: trendgpt-dify
+spec:
+  schedule: "* * * * *"  # Every minute
+  concurrencyPolicy: Allow
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: keepalive
+            image: curlimages/curl:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              # Send a request every 30 seconds for 1 minute (2 requests per job)
+              for i in 1 2; do
+                echo "Sending keepalive request $i at $(date)"
+                curl -s -o /dev/null -w "Response time: %{time_total}s\n" http://dify-proxy/health || true
+                if [ $i -lt 2 ]; then
+                  sleep 30
+                fi
+              done
+          restartPolicy: OnFailure
