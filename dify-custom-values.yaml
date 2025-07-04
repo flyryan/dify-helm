@@ -5,16 +5,29 @@
 image:
   api:
     repository: langgenius/dify-api
-    tag: "v141-hotfix"
+    tag: "1.4.3"
+    pullSecrets:
+      - dockerhub-secret
   web:
     repository: langgenius/dify-web
-    tag: "v141-hotfix"
+    tag: "1.4.3"
+    pullSecrets:
+      - dockerhub-secret
   sandbox:
     repository: langgenius/dify-sandbox
     tag: "fix-vulns"
+    pullSecrets:
+      - dockerhub-secret
   pluginDaemon:
     repository: langgenius/dify-plugin-daemon
-    tag: "0.1.1-local"
+    tag: "0.1.2-local"
+    pullSecrets:
+      - dockerhub-secret
+  proxy:
+    repository: nginx
+    tag: "1.25.3"
+    pullSecrets:
+      - dockerhub-secret
 
 # API configuration
 api:
@@ -78,6 +91,12 @@ postgresql:
 
 # Redis configuration
 redis:
+  auth:
+    existingSecret: ""
+    existingSecretPasswordKey: ""
+  global:
+    imagePullSecrets:
+      - dockerhub-secret
   master:
     persistence:
       size: 16Gi
