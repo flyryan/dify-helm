@@ -22,6 +22,9 @@ spec:
       # app: {{ template "dify.ssrfProxy.fullname" . }}
       # version: {{ .Values.istioServiceMesh.version | quote }}
       */}}
+  {{- if .Values.ssrfProxy.updateStrategy }}
+  strategy: {{- toYaml .Values.ssrfProxy.updateStrategy | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       annotations:
@@ -38,6 +41,9 @@ spec:
 {{ include "dify.ud.labels" . | indent 8 }}
     spec:
       serviceAccountName: {{ include "dify.ssrfProxy.serviceAccountName" . }}
+      {{- if .Values.ssrfProxy.priorityClassName }}
+      priorityClassName: {{ .Values.ssrfProxy.priorityClassName | quote }}
+      {{- end }}
       {{- if .Values.image.ssrfProxy.pullSecrets }}
       imagePullSecrets:
       {{- range .Values.image.ssrfProxy.pullSecrets }}

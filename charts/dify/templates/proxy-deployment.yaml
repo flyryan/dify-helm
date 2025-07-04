@@ -22,6 +22,9 @@ spec:
       # app: {{ template "dify.nginx.fullname" . }}
       # version: {{ .Values.istioServiceMesh.version | quote }}
       */}}
+  {{- if .Values.proxy.updateStrategy }}
+  strategy: {{- toYaml .Values.proxy.updateStrategy | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       annotations:
@@ -38,6 +41,9 @@ spec:
 {{ include "dify.ud.labels" . | indent 8 }}
     spec:
       serviceAccountName: {{ include "dify.proxy.serviceAccountName" . }}
+      {{- if .Values.proxy.priorityClassName }}
+      priorityClassName: {{ .Values.proxy.priorityClassName | quote }}
+      {{- end }}
       {{- if .Values.image.proxy.pullSecrets }}
       imagePullSecrets:
       {{- range .Values.image.proxy.pullSecrets }}
