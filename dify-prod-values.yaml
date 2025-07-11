@@ -5,10 +5,10 @@
 image:
   api:
     repository: langgenius/dify-api
-    tag: "1.5.1"
+    tag: "1.6.0"
   web:
     repository: langgenius/dify-web
-    tag: "1.5.1"
+    tag: "1.6.0"
   sandbox:
     repository: langgenius/dify-sandbox
     tag: "fix-vulns"
