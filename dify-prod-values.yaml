@@ -85,24 +85,28 @@ redis:
     persistence:
       size: 16Gi
 
-# Weaviate configuration
+# Weaviate configuration - FIXED FOR OOM ISSUES
 weaviate:
   storage:
     size: 64Gi
   resources:
     requests:
       cpu: '4'
-      memory: '8Gi'
+      memory: '16Gi'
     limits:
       cpu: '8'
-      memory: '16Gi'
+      memory: '24Gi'  # Increased from 16Gi
   env:
-    # Set GOMEMLIMIT to 15GiB (slightly below the 16Gi limit) to prevent OOM
-    GOMEMLIMIT: 15GiB
+    # Enable automatic resource limiting
+    LIMIT_RESOURCES: "true"
+    # Set GOMEMLIMIT to 22GiB (below the 24Gi limit)
+    GOMEMLIMIT: 22GiB
     # Reduce GC aggressiveness to allow more memory usage before triggering GC
     GOGC: 200
     # Increase query result limit if needed
     QUERY_MAXIMUM_RESULTS: 100000
+    # Make vector cache prefilling asynchronous (avoid loading all at startup)
+    HNSW_STARTUP_WAIT_FOR_VECTOR_CACHE: "false"
 
 # Proxy configuration - optimize for better performance
 proxy:
