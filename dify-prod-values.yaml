@@ -5,16 +5,16 @@
 image:
   api:
     repository: langgenius/dify-api
-    tag: "1.6.0"
+    tag: "1.7.0"
   web:
     repository: langgenius/dify-web
-    tag: "1.6.0"
+    tag: "1.7.0"
   sandbox:
     repository: langgenius/dify-sandbox
     tag: "fix-vulns"
   pluginDaemon:
     repository: langgenius/dify-plugin-daemon
-    tag: "0.1.3-local"
+    tag: "0.2.0-local"
 
 # API configuration
 api:
@@ -62,6 +62,9 @@ worker:
 
 # Plugin Daemon configuration
 pluginDaemon:
+  extraEnv:
+    - name: FORCE_VERIFYING_SIGNATURE
+      value: "false"
   persistence:
     persistentVolumeClaim:
       accessModes: ReadWriteOnce
