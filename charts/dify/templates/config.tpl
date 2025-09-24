@@ -77,6 +77,29 @@ SSRF_PROXY_HTTPS_URL: http://{{ template "dify.ssrfProxy.fullname" .}}:{{ .Value
 {{- if .Values.pluginDaemon.enabled }}
 PLUGIN_DAEMON_URL: http://{{ template "dify.pluginDaemon.fullname" .}}:{{ .Values.pluginDaemon.service.ports.daemon }}
 {{- end }}
+
+{{- if .Values.api.otel.enabled }}
+# OpenTelemetry configuration
+ENABLE_OTEL: {{ .Values.api.otel.enabled | toString | quote }}
+{{- if .Values.api.otel.traceEndpoint }}
+OTLP_TRACE_ENDPOINT: {{ .Values.api.otel.traceEndpoint | quote }}
+{{- end }}
+{{- if .Values.api.otel.metricEndpoint }}
+OTLP_METRIC_ENDPOINT: {{ .Values.api.otel.metricEndpoint | quote }}
+{{- end }}
+OTLP_BASE_ENDPOINT: {{ .Values.api.otel.baseEndpoint | quote }}
+{{- if .Values.api.otel.exporterProtocol }}
+OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.api.otel.exporterProtocol | quote }}
+{{- end }}
+OTEL_EXPORTER_TYPE: {{ .Values.api.otel.exporterType | quote }}
+OTEL_SAMPLING_RATE: {{ .Values.api.otel.samplingRate | toString | quote }}
+OTEL_BATCH_EXPORT_SCHEDULE_DELAY: {{ .Values.api.otel.batchExportScheduleDelay | toString | quote }}
+OTEL_MAX_QUEUE_SIZE: {{ .Values.api.otel.maxQueueSize | toString | quote }}
+OTEL_MAX_EXPORT_BATCH_SIZE: {{ .Values.api.otel.maxExportBatchSize | toString | quote }}
+OTEL_METRIC_EXPORT_INTERVAL: {{ .Values.api.otel.metricExportInterval | toString | quote }}
+OTEL_BATCH_EXPORT_TIMEOUT: {{ .Values.api.otel.batchExportTimeout | toString | quote }}
+OTEL_METRIC_EXPORT_TIMEOUT: {{ .Values.api.otel.metricExportTimeout | toString | quote }}
+{{- end }}
 {{- end }}
 
 {{- define "dify.worker.config" -}}
@@ -104,7 +127,8 @@ LOG_LEVEL: {{ .Values.worker.logLevel | quote }}
 {{ include "dify.redis.config" . }}
 # The configurations of celery broker.
 {{ include "dify.celery.config" . }}
-
+# The configurations of celery backend
+CELERY_BACKEND: redis
 {{ include "dify.storage.config" . }}
 # The Vector store configurations.
 {{ include "dify.vectordb.config" . }}
@@ -113,6 +137,29 @@ LOG_LEVEL: {{ .Values.worker.logLevel | quote }}
 PLUGIN_DAEMON_URL: http://{{ template "dify.pluginDaemon.fullname" .}}:{{ .Values.pluginDaemon.service.ports.daemon }}
 {{- end }}
 {{- include "dify.marketplace.config" . }}
+
+{{- if .Values.api.otel.enabled }}
+# OpenTelemetry configuration
+ENABLE_OTEL: {{ .Values.api.otel.enabled | toString | quote }}
+{{- if .Values.api.otel.traceEndpoint }}
+OTLP_TRACE_ENDPOINT: {{ .Values.api.otel.traceEndpoint | quote }}
+{{- end }}
+{{- if .Values.api.otel.metricEndpoint }}
+OTLP_METRIC_ENDPOINT: {{ .Values.api.otel.metricEndpoint | quote }}
+{{- end }}
+OTLP_BASE_ENDPOINT: {{ .Values.api.otel.baseEndpoint | quote }}
+{{- if .Values.api.otel.exporterProtocol }}
+OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.api.otel.exporterProtocol | quote }}
+{{- end }}
+OTEL_EXPORTER_TYPE: {{ .Values.api.otel.exporterType | quote }}
+OTEL_SAMPLING_RATE: {{ .Values.api.otel.samplingRate | toString | quote }}
+OTEL_BATCH_EXPORT_SCHEDULE_DELAY: {{ .Values.api.otel.batchExportScheduleDelay | toString | quote }}
+OTEL_MAX_QUEUE_SIZE: {{ .Values.api.otel.maxQueueSize | toString | quote }}
+OTEL_MAX_EXPORT_BATCH_SIZE: {{ .Values.api.otel.maxExportBatchSize | toString | quote }}
+OTEL_METRIC_EXPORT_INTERVAL: {{ .Values.api.otel.metricExportInterval | toString | quote }}
+OTEL_BATCH_EXPORT_TIMEOUT: {{ .Values.api.otel.batchExportTimeout | toString | quote }}
+OTEL_METRIC_EXPORT_TIMEOUT: {{ .Values.api.otel.metricExportTimeout | toString | quote }}
+{{- end }}
 {{- end }}
 
 {{- define "dify.web.config" -}}
@@ -171,6 +218,7 @@ S3_BUCKET_NAME: {{ .Values.externalS3.bucketName.api | quote }}
 # S3_ACCESS_KEY: {{ .Values.externalS3.accessKey | quote }}
 # S3_SECRET_KEY: {{ .Values.externalS3.secretKey | quote }}
 S3_REGION: {{ .Values.externalS3.region | quote }}
+S3_USE_AWS_MANAGED_IAM: {{ .Values.externalS3.useIAM | toString | quote }}
 {{- else if .Values.externalAzureBlobStorage.enabled }}
 # The type of storage to use for storing user files. Supported values are `local`, `s3`, `azure-blob`, `aliyun-oss` and `google-storage`, Default: `local`
 STORAGE_TYPE: azure-blob
@@ -335,6 +383,11 @@ TABLESTORE_ENDPOINT: {{ .Values.externalTableStore.endpoint | quote }}
 TABLESTORE_INSTANCE_NAME: {{ .Values.externalTableStore.instanceName | quote }}
 # TABLESTORE_ACCESS_KEY_ID: {{ .Values.externalTableStore.accessKeyId | quote }}
 # TABLESTORE_ACCESS_KEY_SECRET: {{ .Values.externalTableStore.accessKeySecret | quote }}
+{{- else if .Values.externalElasticsearch.enabled }}
+# Elasticsearch configurations, only available when VECTOR_STORE is `elasticsearch`
+VECTOR_STORE: elasticsearch
+ELASTICSEARCH_HOST: {{ .Values.externalElasticsearch.host | quote }}
+ELASTICSEARCH_PORT: {{ .Values.externalElasticsearch.port | toString | quote }}
 {{- else if .Values.weaviate.enabled }}
 # The type of vector store to use. Supported values are `weaviate`, `qdrant`, `milvus`.
 VECTOR_STORE: weaviate
@@ -593,10 +646,15 @@ S3_USE_PATH_STYLE: {{ .Values.externalS3.pathStyle | toString | quote }}
 S3_ENDPOINT: {{ .Values.externalS3.endpoint | quote }}
 PLUGIN_STORAGE_OSS_BUCKET: {{ .Values.externalS3.bucketName.pluginDaemon | quote }}
 AWS_REGION: {{ .Values.externalS3.region | quote }}
+S3_USE_AWS_MANAGED_IAM: {{ .Values.externalS3.useIAM | toString | quote }}
+{{- else if .Values.externalAzureBlobStorage.enabled }}
+PLUGIN_STORAGE_TYPE: "azure_blob"
+AZURE_BLOB_STORAGE_CONTAINER_NAME: {{ .Values.externalAzureBlobStorage.container | quote }}
 {{- else if and .Values.externalOSS.enabled .Values.externalOSS.bucketName.pluginDaemon }}
 PLUGIN_STORAGE_TYPE: "aliyun_oss"
 ALIYUN_OSS_REGION: {{ .Values.externalOSS.region | quote }}
 ALIYUN_OSS_ENDPOINT: {{ .Values.externalOSS.endpoint | quote }}
+PLUGIN_STORAGE_OSS_BUCKET: {{ .Values.externalOSS.bucketName.pluginDaemon | quote }}
 ALIYUN_OSS_ACCESS_KEY_ID: {{ .Values.externalOSS.accessKey | quote }}
 # ALIYUN_OSS_ACCESS_KEY_SECRET: {{ .Values.externalOSS.secretKey | quote }}
 ALIYUN_OSS_AUTH_VERSION: {{ .Values.externalOSS.authVersion | quote }}
@@ -618,11 +676,11 @@ HUAWEI_OBS_ACCESS_KEY: {{ .Values.externalOBS.accessKey | quote }}
 # HUAWEI_OBS_SECRET_KEY: {{ .Values.externalOBS.secretKey | quote }}
 {{- else if and .Values.externalTOS.enabled .Values.externalTOS.bucketName.pluginDaemon }}
 PLUGIN_STORAGE_TYPE: "volcengine-tos"
-PLUGIN_VOLCENGINE_TOS_ENDPOINT: {{ .Values.externalTOS.endpoint | quote }}
-PLUGIN_VOLCENGINE_TOS_REGION: {{ .Values.externalTOS.region | quote }}
+VOLCENGINE_TOS_ENDPOINT: {{ .Values.externalTOS.endpoint | quote }}
+VOLCENGINE_TOS_REGION: {{ .Values.externalTOS.region | quote }}
 PLUGIN_STORAGE_OSS_BUCKET: {{ .Values.externalTOS.bucketName.pluginDaemon | quote }}
-PLUGIN_VOLCENGINE_TOS_ACCESS_KEY: {{ .Values.externalTOS.accessKey | quote }}
-# PLUGIN_VOLCENGINE_TOS_SECRET_KEY: {{ .Values.externalTOS.secretKey | quote }}
+VOLCENGINE_TOS_ACCESS_KEY: {{ .Values.externalTOS.accessKey | quote }}
+# VOLCENGINE_TOS_SECRET_KEY: {{ .Values.externalTOS.secretKey | quote }}
 {{- else }}
 PLUGIN_STORAGE_TYPE: local
 STORAGE_LOCAL_PATH: {{ .Values.pluginDaemon.persistence.mountPath | quote }}
