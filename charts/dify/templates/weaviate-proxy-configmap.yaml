@@ -1,0 +1,66 @@
+{{- if .Values.ingress.enabled -}}
+{{- if .Values.weaviate.proxy.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "dify.fullname" . }}-weaviate-proxy
+  labels:
+    {{- include "dify.labels" . | nindent 4 }}
+    component: weaviate-proxy
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        # Logging
+        access_log /var/log/nginx/access.log;
+        error_log /var/log/nginx/error.log info;
+
+        # Upstream Weaviate service
+        upstream weaviate {
+            server {{ .Values.weaviate.service.name }}.{{ .Release.Namespace }}.svc.cluster.local:80;
+        }
+
+        server {
+            listen 80;
+            server_name _;
+
+            # Health check endpoint
+            location /healthz {
+                access_log off;
+                return 200 "healthy\n";
+                add_header Content-Type text/plain;
+            }
+
+            # Strip /weaviate prefix and forward to Weaviate
+            # Example: /weaviate/v1/meta → /v1/meta
+            location /weaviate/ {
+                # Remove /weaviate prefix using rewrite
+                rewrite ^/weaviate(.*)$ $1 break;
+
+                # Forward to Weaviate with original headers
+                proxy_pass http://weaviate;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+
+                # Pass Authorization header unchanged
+                proxy_pass_request_headers on;
+
+                # Timeouts for large queries
+                proxy_connect_timeout 30s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
+            }
+
+            # Handle exact /weaviate path (redirect to /weaviate/)
+            location = /weaviate {
+                return 301 /weaviate/;
+            }
+        }
+    }
+{{- end }}
+{{- end }}
