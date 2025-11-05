@@ -88,10 +88,28 @@ redis:
     persistence:
       size: 16Gi
 
-# Weaviate configuration - FIXED FOR OOM ISSUES
+# Weaviate configuration - FIXED FOR OOM ISSUES + READ-ONLY ACCESS
 weaviate:
   storage:
     size: 64Gi
+
+  # Service configuration - ClusterIP for ingress access
+  service:
+    type: ClusterIP
+    name: weaviate
+
+  # NGINX Proxy for path rewriting (/weaviate/* -> /*)
+  proxy:
+    enabled: true
+    replicas: 1
+    resources:
+      requests:
+        cpu: '100m'
+        memory: '128Mi'
+      limits:
+        cpu: '500m'
+        memory: '512Mi'
+
   resources:
     requests:
       cpu: '4'
@@ -99,6 +117,29 @@ weaviate:
     limits:
       cpu: '8'
       memory: '24Gi'  # Increased from 16Gi
+
+  # Authentication configuration
+  authentication:
+    anonymous_access:
+      enabled: false
+    apikey:
+      enabled: true
+      allowed_keys:
+        - "WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih"  # Dify admin key (existing)
+        - "UK5wySunCaNwYBNsXoo5T9cNeHcQPccvS91UB0mh4-4"  # Team read-only key (new)
+      users:
+        - "hello@dify.ai"        # Dify admin user
+        - "team@trendmicro.com"  # Team read-only user
+
+  # Authorization configuration - Admin List with read-only support
+  authorization:
+    admin_list:
+      enabled: true
+      users:
+        - "hello@dify.ai"  # Full admin access (Dify keeps write permissions)
+      read_only_users:
+        - "team@trendmicro.com"  # Read-only access for external team
+
   env:
     # Enable automatic resource limiting
     LIMIT_RESOURCES: "true"
@@ -110,6 +151,13 @@ weaviate:
     QUERY_MAXIMUM_RESULTS: 100000
     # Make vector cache prefilling asynchronous (avoid loading all at startup)
     HNSW_STARTUP_WAIT_FOR_VECTOR_CACHE: "false"
+    # Authentication and Authorization for read-only access
+    AUTHENTICATION_APIKEY_ENABLED: "true"
+    AUTHENTICATION_APIKEY_ALLOWED_KEYS: "WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih,UK5wySunCaNwYBNsXoo5T9cNeHcQPccvS91UB0mh4-4"
+    AUTHENTICATION_APIKEY_USERS: "hello@dify.ai,team@trendmicro.com"
+    AUTHORIZATION_ADMINLIST_ENABLED: "true"
+    AUTHORIZATION_ADMINLIST_USERS: "hello@dify.ai"
+    AUTHORIZATION_ADMINLIST_READONLY_USERS: "team@trendmicro.com"
 
 # Proxy configuration - optimize for better performance
 proxy:
@@ -144,6 +192,16 @@ ingress:
   hosts:
     - host: "trendgptdify.runtime.trendmicro.com"
       paths:
+        # Weaviate path - MUST come first for proper routing (more specific)
+        # Routes to NGINX proxy which strips /weaviate prefix before forwarding to Weaviate
+        - path: /weaviate
+          pathType: Prefix
+          backend:
+            service:
+              name: dify-weaviate-proxy
+              port:
+                number: 80
+        # Dify path - catch-all route (less specific, must come last)
         - path: /
           pathType: Prefix
 
