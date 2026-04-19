@@ -18,6 +18,20 @@ image:
 
 # API configuration
 api:
+  # 2 replicas for HA; pod affinity keeps them co-located for shared RWO PVC
+  replicas: 2
+  affinity:
+    podAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: component
+                  operator: In
+                  values:
+                    - api
+            topologyKey: kubernetes.io/hostname
   # Environment variables - Updated for internal ingress access
   extraEnv:
     - name: CONSOLE_WEB_URL
@@ -80,9 +94,14 @@ api:
 
 # Worker configuration
 worker:
+  # 2 replicas, 4 gevent greenlets each → 8x ingestion concurrency vs prior 1x
+  replicas: 2
   extraEnv:
     - name: LITELLM_MODIFY_PARAMS
       value: "true"
+    # 4 gevent greenlets per worker process = 4 concurrent indexing tasks per pod
+    - name: CELERY_WORKER_AMOUNT
+      value: "4"
     # Match api pool caps so worker doesn't exhaust max_connections during embedding bursts
     - name: SQLALCHEMY_POOL_SIZE
       value: "10"
@@ -109,6 +128,20 @@ worker:
 
 # Plugin Daemon configuration
 pluginDaemon:
+  # 2 replicas for HA; same-node affinity keeps them on one host for shared RWO PVC
+  replicas: 2
+  affinity:
+    podAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: component
+                  operator: In
+                  values:
+                    - plugin-daemon
+            topologyKey: kubernetes.io/hostname
   extraEnv:
     - name: FORCE_VERIFYING_SIGNATURE
       value: "false"
@@ -176,7 +209,7 @@ weaviate:
       memory: '16Gi'
     limits:
       cpu: '8'
-      memory: '24Gi'  # Increased from 16Gi
+      memory: '40Gi'  # Raised from 24Gi — was at 95% under 10K doc / 52K segment load
 
   # Authentication configuration
   authentication:
@@ -203,8 +236,8 @@ weaviate:
   env:
     # Enable automatic resource limiting
     LIMIT_RESOURCES: "true"
-    # Set GOMEMLIMIT to 22GiB (below the 24Gi limit)
-    GOMEMLIMIT: 22GiB
+    # Set GOMEMLIMIT to 36GiB (below the 40Gi limit) — headroom for GC overhead
+    GOMEMLIMIT: 36GiB
     # Reduce GC aggressiveness to allow more memory usage before triggering GC
     GOGC: 200
     # Increase query result limit if needed
