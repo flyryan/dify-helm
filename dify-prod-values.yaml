@@ -34,6 +34,44 @@ api:
       value: "https://trendgptdify.runtime.trendmicro.com"
     - name: LITELLM_MODIFY_PARAMS
       value: "true"
+    # Resilience: 4 workers so slow LLM calls don't starve health probes
+    - name: SERVER_WORKER_AMOUNT
+      value: "4"
+    - name: GUNICORN_TIMEOUT
+      value: "600"
+    # Cap pool so 4 workers × (10 + 5) = 60 conns fits well under Postgres max_connections
+    - name: SQLALCHEMY_POOL_SIZE
+      value: "10"
+    - name: SQLALCHEMY_MAX_OVERFLOW
+      value: "5"
+    # Drop dead sockets left over from OOMKilled pods
+    - name: SQLALCHEMY_POOL_PRE_PING
+      value: "true"
+    - name: SQLALCHEMY_POOL_RECYCLE
+      value: "1800"
+  # Resources for 4 gevent workers — raised to stop OOMKill loop under plugin+embedding load
+  resources:
+    requests:
+      cpu: '500m'
+      memory: '2Gi'
+    limits:
+      cpu: '2'
+      memory: '8Gi'
+  # Relaxed probes: slow upstream LLM endpoints shouldn't crash-loop the API
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 15
+    failureThreshold: 10
+    successThreshold: 1
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    failureThreshold: 10
+    successThreshold: 1
   # Persistence configuration
   persistence:
     persistentVolumeClaim:
@@ -45,6 +83,15 @@ worker:
   extraEnv:
     - name: LITELLM_MODIFY_PARAMS
       value: "true"
+    # Match api pool caps so worker doesn't exhaust max_connections during embedding bursts
+    - name: SQLALCHEMY_POOL_SIZE
+      value: "10"
+    - name: SQLALCHEMY_MAX_OVERFLOW
+      value: "5"
+    - name: SQLALCHEMY_POOL_PRE_PING
+      value: "true"
+    - name: SQLALCHEMY_POOL_RECYCLE
+      value: "1800"
   persistence:
     persistentVolumeClaim:
       accessModes: ReadWriteOnce
@@ -65,6 +112,14 @@ pluginDaemon:
   extraEnv:
     - name: FORCE_VERIFYING_SIGNATURE
       value: "false"
+  # Explicit resources — otherwise inherits namespace LimitRange (1 CPU / 2Gi), which OOMs
+  resources:
+    requests:
+      cpu: '200m'
+      memory: '1Gi'
+    limits:
+      cpu: '2'
+      memory: '4Gi'
   persistence:
     persistentVolumeClaim:
       accessModes: ReadWriteOnce
@@ -75,9 +130,14 @@ postgresql:
   primary:
     persistence:
       size: 64Gi
+    # Headroom above default 100; a primary restart is required when this changes
+    extendedConfiguration: |
+      max_connections = 200
   readReplicas:
     persistence:
       size: 32Gi
+    extendedConfiguration: |
+      max_connections = 200
 
 # Redis configuration
 redis:
