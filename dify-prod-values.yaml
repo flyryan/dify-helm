@@ -184,7 +184,7 @@ redis:
 # Weaviate configuration - FIXED FOR OOM ISSUES + READ-ONLY ACCESS
 weaviate:
   storage:
-    size: 64Gi
+    size: 128Gi
 
   # Service configuration - ClusterIP for ingress access
   service:
