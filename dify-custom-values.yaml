@@ -107,7 +107,7 @@ redis:
 # Weaviate configuration
 weaviate:
   storage:
-    size: 64Gi
+    size: 128Gi
   resources:
     requests:
       cpu: '2'
