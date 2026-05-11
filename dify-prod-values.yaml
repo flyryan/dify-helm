@@ -162,13 +162,13 @@ pluginDaemon:
 postgresql:
   primary:
     persistence:
-      size: 64Gi
+      size: 128Gi
     # Headroom above default 100; a primary restart is required when this changes
     extendedConfiguration: |
       max_connections = 200
   readReplicas:
     persistence:
-      size: 32Gi
+      size: 128Gi
     extendedConfiguration: |
       max_connections = 200
 

@@ -84,10 +84,10 @@ pluginDaemon:
 postgresql:
   primary:
     persistence:
-      size: 64Gi
+      size: 128Gi
   readReplicas:
     persistence:
-      size: 32Gi
+      size: 128Gi
 
 # Redis configuration
 redis:
