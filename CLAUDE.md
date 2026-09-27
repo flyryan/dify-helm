@@ -16,11 +16,14 @@ Every change to prod Dify is made here, in `dify-prod-values.yaml`, and applied 
 | Consumer | ProductIQ, repo TrendDifyFrontend (`../AATF/TrendDifyFrontend`) |
 
 ```bash
+# Always name the Dify kubeconfig; never rely on the current context.
+KC="$HOME/.cache/rdsec-kubeconfigs/RDSec-Prod-trendgpt-dify.kubeconfig"
+helm --kubeconfig "$KC" -n trendgpt-dify status dify   # confirms it reaches the release
 # Preview (renders against the cluster; does NOT run API validation)
-helm upgrade dify ./charts/dify -n trendgpt-dify \
+helm --kubeconfig "$KC" -n trendgpt-dify upgrade dify ./charts/dify \
   -f dify-prod-values.yaml -f dify-prod-secrets.yaml --dry-run=server
 # Apply — maintenance window only
-helm upgrade dify ./charts/dify -n trendgpt-dify \
+helm --kubeconfig "$KC" -n trendgpt-dify upgrade dify ./charts/dify \
   -f dify-prod-values.yaml -f dify-prod-secrets.yaml
 ```
 
@@ -28,7 +31,7 @@ Rules:
 
 - **No out-of-band edits.** Do not `kubectl set env`, `kubectl set image` or `kubectl patch` the Dify Deployments/StatefulSets unless the same change lands in `dify-prod-values.yaml` in the same session. A `helm upgrade` reverts anything the values don't carry. The one exception is a temporary app-id canary of `PIQ_DATASET_SOURCE_LABELS` for a retrieval eval: it is set live only, never written here, and restored to `on` when the eval ends (TrendDifyFrontend `dify-patches/README.md`, Patch 5). That is how the patched image, `PIQ_DATASET_SOURCE_LABELS`, the replica readiness probe and `wal_keep_size` drifted before 2026-09-27.
 - **Reconcile before upgrading.** Render with the live values (`helm get values dify -n trendgpt-dify`) and compare against the live objects. Any live-only field must be added to the values first.
-- **StatefulSet `volumeClaimTemplates` are immutable** (EKS 1.36 rejects the update). PVCs are expanded online with `kubectl patch pvc`. The values then carry the real size, and the next upgrade needs `kubectl -n trendgpt-dify delete sts <name> --cascade=orphan` first (pods and PVCs keep running; Helm recreates the StatefulSet). Preview before that delete, never after: diff `helm get manifest dify -n trendgpt-dify` against `helm template` of these values (both outputs hold secrets; write them outside the repo and delete them), and delete the StatefulSets only if the diff shows just the intended changes. As of 2026-09-27 this is pending for `dify-postgresql-primary` (template 64Gi, PVC 256Gi), `dify-postgresql-read` (32Gi / 256Gi) and `weaviate` (64Gi / 128Gi).
+- **StatefulSet `volumeClaimTemplates` are immutable** (EKS 1.36 rejects the update). PVCs are expanded online with `kubectl patch pvc`. The values then carry the real size, and the next upgrade needs `kubectl --kubeconfig "$KC" -n trendgpt-dify delete sts <name> --cascade=orphan` first (pods and PVCs keep running; Helm recreates the StatefulSet). Preview before that delete, never after: diff `helm --kubeconfig "$KC" -n trendgpt-dify get manifest dify` against `helm template` of these values (both outputs hold secrets; write them outside the repo and delete them), and delete the StatefulSets only if the diff shows just the intended changes. As of 2026-09-27 this is pending for `dify-postgresql-primary` (template 64Gi, PVC 256Gi), `dify-postgresql-read` (32Gi / 256Gi) and `weaviate` (64Gi / 128Gi).
 - **ProductIQ image patches** (`productiq-dify-api:1.8.1-piq.N`) are built in TrendDifyFrontend `dify-patches/`. Bump `image.api.tag` here when a new cut ships; the worker uses the same image.
 
 ## Secrets
