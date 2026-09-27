@@ -102,11 +102,12 @@ api:
     timeoutSeconds: 10
     failureThreshold: 10
     successThreshold: 1
-  # Persistence configuration
+  # Persistence configuration. The `dify` PVC was expanded online to 64Gi; PVCs cannot
+  # shrink, so this must stay >= the live capacity.
   persistence:
     persistentVolumeClaim:
       accessModes: ReadWriteOnce
-      size: 16Gi
+      size: 64Gi
 
 # Worker configuration
 worker:
