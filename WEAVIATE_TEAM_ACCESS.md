@@ -11,7 +11,7 @@ This document provides instructions for accessing the Dify Weaviate vector store
 | Parameter | Value |
 |-----------|-------|
 | **Base URL** | `https://trendgptdify.runtime.trendmicro.com/weaviate` |
-| **API Key** | `***REMOVED***` |
+| **API Key** | `<API key: see dify-prod-secrets.yaml (weaviate.authentication.apikey.allowed_keys)>` |
 | **Authentication** | Bearer token in `Authorization` header |
 | **Access Level** | **Read-Only** (query only, no write operations) |
 | **Network** | Internal only (VPN required if off-network) |
@@ -38,7 +38,7 @@ This document provides instructions for accessing the Dify Weaviate vector store
 All Weaviate API requests must include the API key in the `Authorization` header:
 
 ```bash
-Authorization: Bearer ***REMOVED***
+Authorization: Bearer <API key: see dify-prod-secrets.yaml (weaviate.authentication.apikey.allowed_keys)>
 ```
 
 ### RDSec Embedding API Authentication
@@ -52,7 +52,7 @@ For embedding generation, you'll need credentials for the RDSec AI endpoint. Con
 ### 1. **Test Weaviate Connection**
 
 ```bash
-curl -H "Authorization: Bearer ***REMOVED***" \
+curl -H "Authorization: Bearer <API key: see dify-prod-secrets.yaml (weaviate.authentication.apikey.allowed_keys)>" \
   https://trendgptdify.runtime.trendmicro.com/weaviate/v1/meta
 ```
 
@@ -61,7 +61,7 @@ curl -H "Authorization: Bearer ***REMOVED***" \
 ### 2. **List All Collections (Knowledge Bases)**
 
 ```bash
-curl -H "Authorization: Bearer ***REMOVED***" \
+curl -H "Authorization: Bearer <API key: see dify-prod-secrets.yaml (weaviate.authentication.apikey.allowed_keys)>" \
   https://trendgptdify.runtime.trendmicro.com/weaviate/v1/schema
 ```
 
@@ -105,7 +105,7 @@ import requests
 
 # Weaviate configuration
 WEAVIATE_URL = "https://trendgptdify.runtime.trendmicro.com/weaviate"
-WEAVIATE_KEY = "***REMOVED***"
+WEAVIATE_KEY = "<API key: see dify-prod-secrets.yaml (weaviate.authentication.apikey.allowed_keys)>"
 
 # RDSec AI endpoint configuration
 RDSEC_API_URL = "https://api.rdsec.trendmicro.com/prod/aiendpoint/v1/embeddings"
@@ -183,7 +183,7 @@ EMBEDDING=$(curl -X POST https://api.rdsec.trendmicro.com/prod/aiendpoint/v1/emb
 # Step 2: Query Weaviate with embedding (example: Vision One Documentation)
 curl -X POST \
   https://trendgptdify.runtime.trendmicro.com/weaviate/v1/graphql \
-  -H 'Authorization: Bearer ***REMOVED***' \
+  -H 'Authorization: Bearer <API key: see dify-prod-secrets.yaml (weaviate.authentication.apikey.allowed_keys)>' \
   -H 'Content-Type: application/json' \
   -d "{
     \"query\": \"{Get{Vector_index_4437bcf1_3d24_466d_b935_8e6a35ec655a_Node(limit:4 nearVector:{vector:$EMBEDDING}){text doc_id document_id _additional{distance}}}}\"
@@ -200,7 +200,7 @@ Weaviate collections follow the naming convention: `Vector_index_{dataset_id}_No
 
 To find available collections, use the schema endpoint:
 ```bash
-curl -H "Authorization: Bearer ***REMOVED***" \
+curl -H "Authorization: Bearer <API key: see dify-prod-secrets.yaml (weaviate.authentication.apikey.allowed_keys)>" \
   https://trendgptdify.runtime.trendmicro.com/weaviate/v1/schema | jq '.classes[].class'
 ```
 
@@ -423,7 +423,7 @@ import os
 
 # Configuration
 WEAVIATE_URL = "https://trendgptdify.runtime.trendmicro.com/weaviate"
-WEAVIATE_KEY = os.getenv("WEAVIATE_API_KEY", "***REMOVED***")  # Read-only key
+WEAVIATE_KEY = os.getenv("WEAVIATE_API_KEY", "<API key: see dify-prod-secrets.yaml (weaviate.authentication.apikey.allowed_keys)>")  # Read-only key
 RDSEC_API_URL = "https://api.rdsec.trendmicro.com/prod/aiendpoint/v1/embeddings"
 RDSEC_API_KEY = os.getenv("RDSEC_API_KEY")  # Get from RDSec team
 
