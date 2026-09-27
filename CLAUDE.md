@@ -1,77 +1,58 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code in this repo: a fork of [BorisPolonsky/dify-helm](https://github.com/BorisPolonsky/dify-helm) (chart `charts/dify`, version 0.29.0) plus the values that run ProductIQ's production Dify.
 
-## Repository Overview
+**This repository is public.** Never commit a secret, kubeconfig or token. Secrets live only in the gitignored `dify-prod-secrets.yaml`.
 
-This is a Helm chart repository for deploying [langgenius/dify](https://github.com/langgenius/dify), an LLM-based chatbot application, on Kubernetes clusters. The repository contains the Helm chart definition, templates, and deployment configurations.
+## Prod source of truth — where Dify changes are made
 
-## Common Commands
+Every change to prod Dify is made here, in `dify-prod-values.yaml`, and applied with Helm. This covers the image, env vars, resources, probes, PVC sizes and Postgres config.
 
-### Helm Chart Development
+| | |
+| --- | --- |
+| Release / namespace | `dify` in `trendgpt-dify` (RDSec PSC-PROD; kubeconfig via `rone`, see TrendDifyFrontend `scripts/get-kubeconfig.sh` with `NAMESPACE=trendgpt-dify`) |
+| Values | `dify-prod-values.yaml` (tracked, no secrets) + `dify-prod-secrets.yaml` (gitignored; template `dify-prod-secrets.example.yaml`) |
+| Chart | `./charts/dify` (0.29.0, app 1.8.1) |
+| Consumer | ProductIQ, repo TrendDifyFrontend (`../AATF/TrendDifyFrontend`) |
+
 ```bash
-# Add required chart repositories for dependencies
+# Preview (renders against the cluster; does NOT run API validation)
+helm upgrade dify ./charts/dify -n trendgpt-dify \
+  -f dify-prod-values.yaml -f dify-prod-secrets.yaml --dry-run=server
+# Apply — maintenance window only
+helm upgrade dify ./charts/dify -n trendgpt-dify \
+  -f dify-prod-values.yaml -f dify-prod-secrets.yaml
+```
+
+Rules:
+
+- **No out-of-band edits.** Do not `kubectl set env`, `kubectl set image` or `kubectl patch` the Dify Deployments/StatefulSets unless the same change lands in `dify-prod-values.yaml` in the same session. A `helm upgrade` reverts anything the values don't carry. That is how the patched image, `PIQ_DATASET_SOURCE_LABELS`, the replica readiness probe and `wal_keep_size` drifted before 2026-09-27.
+- **Reconcile before upgrading.** Render with the live values (`helm get values dify -n trendgpt-dify`) and compare against the live objects. Any live-only field must be added to the values first.
+- **StatefulSet `volumeClaimTemplates` are immutable** (EKS 1.36 rejects the update). PVCs are expanded online with `kubectl patch pvc`. The values then carry the real size, and the next upgrade needs `kubectl -n trendgpt-dify delete sts <name> --cascade=orphan` first (pods and PVCs keep running; Helm recreates the StatefulSet). As of 2026-09-27 this is pending for `dify-postgresql-primary` (template 64Gi, PVC 256Gi), `dify-postgresql-read` (32Gi / 256Gi) and `weaviate` (64Gi / 128Gi).
+- **ProductIQ image patches** (`productiq-dify-api:1.8.1-piq.N`) are built in TrendDifyFrontend `dify-patches/`. Bump `image.api.tag` here when a new cut ships; the worker uses the same image.
+
+## Secrets
+
+- `dify-prod-secrets.yaml` holds the Weaviate API keys and user lists (Dify connects with the first allowed key). Rebuild it from `helm get values dify -n trendgpt-dify` if lost.
+- Prod still runs several **chart-default (public) secrets**: the Postgres password, `api.secretKey`, `sandbox.auth.apiKey`, `pluginDaemon.auth.serverKey`/`difyApiKey`, and the first Weaviate key. `dify-prod-secrets.example.yaml` says what else must move when each is rotated.
+
+## Other live objects outside the chart
+
+- Ingress `dify-internal-ingress` (`dify-internal-ingress.yaml`, `deploy-internal-ingress.sh`)
+- Service `dify-postgresql-read-external`
+- `jfrog-docker-secret` on the namespace's default ServiceAccount, for the JFrog image pulls; refreshed monthly by TrendDifyFrontend `rotate-jfrog-token.yml`
+- RBAC `k8s/dify/rbac-dify-db-endpoint-reader.yaml` in TrendDifyFrontend
+
+## Other files
+
+- `dify-custom-values.yaml`: legacy values for the old `trendgpt-difytest` environment (dify 1.4.3). Not prod.
+- `charts/dify/values.yaml`: chart defaults (upstream); change only when porting upstream chart updates.
+- `ci/`, `.github/`: upstream chart CI.
+
+## Chart commands
+
+```bash
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo add weaviate https://weaviate.github.io/weaviate-helm
-helm repo update
-
-# Install/upgrade Dify deployment
-helm upgrade --install my-release ./charts/dify -n <namespace> --kubeconfig <path-to-kubeconfig> -f <values-file>
-
-# Example deployment with custom values
-helm upgrade --install my-release ./charts/dify -n trendgpt-difynew --kubeconfig <path-to-kubeconfig> -f dify-custom-values.yaml
-
-# Chart testing (using ct tool configuration in ct.yaml)
 ct lint --config ct.yaml
 ```
-
-### Working with Multiple Clusters
-```bash
-# The project involves cross-cluster migrations between:
-# - Source: runtime-prod cluster, trendgpt-difynew namespace
-# - Target: PSC-PROD cluster, trendgpt-dify namespace
-
-# Scale deployments (for PVC conflicts)
-kubectl --kubeconfig <path-to-kubeconfig> -n <namespace> scale deployment <deployment-name> --replicas=0
-kubectl --kubeconfig <path-to-kubeconfig> -n <namespace> scale deployment <deployment-name> --replicas=1
-```
-
-## Architecture and Structure
-
-### Chart Components
-The Helm chart deploys the following Dify components:
-- **Core Services**: API, Worker, Sandbox
-- **Plugin Daemon**: For plugin management
-- **Support Services**: SSRF Proxy, Web frontend
-- **Data Layer**: PostgreSQL, Redis, Weaviate (vector database)
-- **Networking**: Ingress configuration, proxy setup
-
-### Key Configuration Files
-- `charts/dify/values.yaml`: Default values for all components
-- `dify-custom-values.yaml`: Production-specific overrides including:
-  - Image versions for all components
-  - Persistence configurations (PVC sizes)
-  - Environment variables (URLs, passwords)
-  - Resource limits (especially for Weaviate: 4 CPU cores, 8Gi memory)
-- `dify-prod-values.yaml`: Template for production deployments
-
-### Data Persistence
-All stateful components use Persistent Volume Claims (PVCs):
-- PostgreSQL: Primary (210Gi) and read replicas (210Gi each)
-- Redis: Master (100Gi) and replicas (100Gi each)
-- Weaviate: 60Gi storage
-- API/Worker/Plugin Daemon: 16Gi each for shared data
-
-### Migration Context
-The repository is actively used for migrating Dify deployments between Kubernetes clusters. Key considerations:
-- Database sizes: PostgreSQL ~11GB, Weaviate ~7.6GB
-- Network constraints: Direct cluster-to-cluster transfer needed (user's internet is bottleneck)
-- Known issues: PostgreSQL embeddings table corruption (can be excluded during migration)
-- Database password: `difyai123456` (for migration purposes)
-
-### Resource Requirements
-Weaviate requires significant resources to prevent crashes:
-- Requests: 1 CPU core, 2Gi memory
-- Limits: 4 CPU cores, 8Gi memory
-
-These allocations were determined through testing and are necessary for vector cache prefilling operations.

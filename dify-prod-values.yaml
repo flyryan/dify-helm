@@ -1,11 +1,25 @@
-# Dify Production Environment Values
-# Deployment to trendgpt-dify namespace in new environment
+# Dify Production Environment Values — release `dify`, namespace `trendgpt-dify` (RDSec PSC-PROD)
+#
+# THIS FILE IS THE SOURCE OF TRUTH FOR PROD DIFY. Every Dify change (image, env,
+# resources, probes, PVC sizes, Postgres config) is made here and applied with:
+#
+#   helm upgrade dify ./charts/dify -n trendgpt-dify \
+#     -f dify-prod-values.yaml -f dify-prod-secrets.yaml
+#
+# Secrets live ONLY in dify-prod-secrets.yaml (gitignored; template:
+# dify-prod-secrets.example.yaml). This repo is public — never commit a secret here.
+# Never use `kubectl set env` / `kubectl patch` / `kubectl set image` on this
+# namespace without mirroring the change here in the same session.
+# Last reconciled with the live cluster: 2026-09-27 (see README "Prod source of truth").
 
 # Image versions (using stable hotfix versions)
 image:
   api:
-    repository: langgenius/dify-api
-    tag: "1.8.1"
+    # ProductIQ-patched dify-api (patches 1-5), built from TrendDifyFrontend
+    # `dify-patches/` (see its README). The worker uses the same image. JFrog pulls
+    # use `jfrog-docker-secret` on the namespace's default ServiceAccount.
+    repository: jfrog.trendmicro.com/aatf-docker-prod-local/productiq-dify-api
+    tag: "1.8.1-piq.4"
   web:
     repository: langgenius/dify-web
     tag: "1.8.1"
@@ -36,8 +50,6 @@ api:
   extraEnv:
     - name: CONSOLE_WEB_URL
       value: "https://trendgptdify.runtime.trendmicro.com"
-    - name: INIT_PASSWORD
-      value: "password"
     - name: CONSOLE_API_URL
       value: "https://trendgptdify.runtime.trendmicro.com"
     - name: SERVICE_API_URL
@@ -63,6 +75,10 @@ api:
       value: "true"
     - name: SQLALCHEMY_POOL_RECYCLE
       value: "1800"
+    # ProductIQ patch 5: label header-less KB search results with their source
+    # document for the model (off | on | comma-separated app ids). Keep equal on worker.
+    - name: PIQ_DATASET_SOURCE_LABELS
+      value: "on"
   # Resources for 4 gevent workers — raised to stop OOMKill loop under plugin+embedding load
   resources:
     requests:
@@ -111,6 +127,8 @@ worker:
       value: "true"
     - name: SQLALCHEMY_POOL_RECYCLE
       value: "1800"
+    - name: PIQ_DATASET_SOURCE_LABELS
+      value: "on"
   persistence:
     persistentVolumeClaim:
       accessModes: ReadWriteOnce
@@ -159,18 +177,47 @@ pluginDaemon:
       size: 16Gi
 
 # PostgreSQL configuration
+#
+# PVC sizes: the live PVCs were expanded online to 256Gi on 2026-09-16
+# (TrendDifyFrontend docs/database/DIFY_STORAGE_INCIDENT_2026-09-16.md). The live
+# StatefulSets still carry their original volumeClaimTemplates (primary 64Gi, read
+# 32Gi), and volumeClaimTemplates are immutable, so a `helm upgrade` with these sizes
+# is REJECTED until both StatefulSets are recreated. In the maintenance window, first:
+#   kubectl -n trendgpt-dify delete sts dify-postgresql-primary dify-postgresql-read --cascade=orphan
+# (pods and PVCs keep running), then run the helm upgrade, which recreates them.
 postgresql:
   primary:
     persistence:
-      size: 128Gi
-    # Headroom above default 100; a primary restart is required when this changes
+      size: 256Gi
+    # Headroom above default 100; a primary restart is required when this changes.
+    # wal_keep_size keeps 8GB of WAL for the streaming replica (replication hardening,
+    # applied live 2026-07-14; TrendDifyFrontend docs/database/DIFY_POSTGRESQL_REPLICATION.md).
     extendedConfiguration: |
       max_connections = 200
+      wal_keep_size = 8192MB
   readReplicas:
     persistence:
-      size: 128Gi
+      size: 256Gi
     extendedConfiguration: |
       max_connections = 200
+    # Ready only while the replica is actually streaming from the primary (a replica
+    # that lost replication keeps answering pg_isready and serves stale reads).
+    customReadinessProbe:
+      exec:
+        command:
+          - /bin/sh
+          - -ec
+          - >-
+            test "$(PGCONNECT_TIMEOUT=3 PGPASSWORD="$POSTGRES_PASSWORD"
+            /opt/bitnami/postgresql/bin/psql -w -X -A -t -v ON_ERROR_STOP=1
+            -U postgres -d postgres -h 127.0.0.1
+            -p "$POSTGRESQL_PORT_NUMBER"
+            -c "SELECT 1 FROM pg_stat_wal_receiver WHERE status = 'streaming' LIMIT 1")" = "1"
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+      successThreshold: 1
+      failureThreshold: 6
 
 # Redis configuration
 redis:
@@ -183,6 +230,9 @@ redis:
 
 # Weaviate configuration - FIXED FOR OOM ISSUES + READ-ONLY ACCESS
 weaviate:
+  # Live PVC is 128Gi; the live StatefulSet's volumeClaimTemplate still says 64Gi.
+  # Same immutability rule as Postgres: `kubectl delete sts weaviate --cascade=orphan`
+  # before the helm upgrade that carries this size.
   storage:
     size: 128Gi
 
@@ -211,27 +261,18 @@ weaviate:
       cpu: '8'
       memory: '40Gi'  # Raised from 24Gi — was at 95% under 10K doc / 52K segment load
 
-  # Authentication configuration
+  # Authentication: API keys and the admin / read-only user lists are in
+  # dify-prod-secrets.yaml (weaviate.authentication / weaviate.authorization / the
+  # AUTHENTICATION_* and AUTHORIZATION_ADMINLIST_* env keys). Dify connects with the
+  # FIRST allowed key.
   authentication:
     anonymous_access:
       enabled: false
     apikey:
       enabled: true
-      allowed_keys:
-        - "WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih"  # Dify admin key (existing)
-        - "***REMOVED***"  # Team read-only key (new)
-      users:
-        - "hello@dify.ai"        # Dify admin user
-        - "***REMOVED***"  # Team read-only user
-
-  # Authorization configuration - Admin List with read-only support
   authorization:
     admin_list:
       enabled: true
-      users:
-        - "hello@dify.ai"  # Full admin access (Dify keeps write permissions)
-      read_only_users:
-        - "***REMOVED***"  # Read-only access for external team
 
   env:
     # Enable automatic resource limiting
@@ -244,13 +285,9 @@ weaviate:
     QUERY_MAXIMUM_RESULTS: 100000
     # Make vector cache prefilling asynchronous (avoid loading all at startup)
     HNSW_STARTUP_WAIT_FOR_VECTOR_CACHE: "false"
-    # Authentication and Authorization for read-only access
+    # Authentication and Authorization for read-only access (keys and users: dify-prod-secrets.yaml)
     AUTHENTICATION_APIKEY_ENABLED: "true"
-    AUTHENTICATION_APIKEY_ALLOWED_KEYS: "WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih,***REMOVED***"
-    AUTHENTICATION_APIKEY_USERS: "***REMOVED***"
     AUTHORIZATION_ADMINLIST_ENABLED: "true"
-    AUTHORIZATION_ADMINLIST_USERS: "hello@dify.ai"
-    AUTHORIZATION_ADMINLIST_READONLY_USERS: "***REMOVED***"
 
 # Proxy configuration - optimize for better performance
 proxy:

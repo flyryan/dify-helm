@@ -3,3 +3,6 @@
 .vscode
 .DS_Store
 *.kubeconfig
+
+# Prod secrets — never commit (template: dify-prod-secrets.example.yaml)
+dify-prod-secrets.yaml

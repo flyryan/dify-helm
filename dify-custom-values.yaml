@@ -1,5 +1,5 @@
-# Dify Custom Values
-# This file combines all custom values for Helm upgrades
+# LEGACY — the old trendgpt-difytest test environment (dify 1.4.3). NOT prod.
+# Prod is dify-prod-values.yaml + dify-prod-secrets.yaml (see CLAUDE.md).
 
 # Image versions
 image:
@@ -35,8 +35,6 @@ api:
   extraEnv:
     - name: CONSOLE_WEB_URL
       value: "https://trendgpt-difytest.testenvs.click"
-    - name: INIT_PASSWORD
-      value: "password"
     - name: CONSOLE_API_URL
       value: "https://trendgpt-difytest.testenvs.click"
     - name: SERVICE_API_URL
