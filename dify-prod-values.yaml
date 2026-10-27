@@ -19,16 +19,21 @@ image:
     # `dify-patches/` (see its README). The worker uses the same image. JFrog pulls
     # use `jfrog-docker-secret` on the namespace's default ServiceAccount.
     repository: jfrog.trendmicro.com/aatf-docker-prod-local/productiq-dify-api
-    tag: "1.8.1-piq.4"
+    tag: "1.8.1-piq.5"
+  # The ProductIQ web, sandbox and plugin-daemon images are the stock ones with
+  # security updates only (CVE-2026-111497, Node2Shell), built in TrendDifyFrontend
+  # `dify-patches/{web,sandbox,plugin-daemon}/`.
   web:
-    repository: langgenius/dify-web
-    tag: "1.8.1"
+    repository: jfrog.trendmicro.com/aatf-docker-prod-local/productiq-dify-web
+    tag: "1.8.1-piq.1"
   sandbox:
-    repository: langgenius/dify-sandbox
-    tag: "0.2.12"
+    # Also carries a rebuilt /main: the 0.2.12 source plus io_uring_enter in the
+    # JavaScript seccomp allowlist, which Node 22 needs (see dify-patches/README.md).
+    repository: jfrog.trendmicro.com/aatf-docker-prod-local/productiq-dify-sandbox
+    tag: "0.2.12-piq.2"
   pluginDaemon:
-    repository: langgenius/dify-plugin-daemon
-    tag: "0.2.0-local"
+    repository: jfrog.trendmicro.com/aatf-docker-prod-local/productiq-dify-plugin-daemon
+    tag: "0.2.0-local-piq.1"
 
 # API configuration
 api:
