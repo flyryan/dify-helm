@@ -22,9 +22,10 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/weaviate-proxy-configmap.yaml") . | sha256sum }}
     spec:
       containers:
+      {{- $img := .Values.weaviate.proxy.image | default dict }}
       - name: nginx
-        image: nginx:1.25-alpine
-        imagePullPolicy: IfNotPresent
+        image: "{{ $img.repository | default "nginx" }}:{{ $img.tag | default "1.30.7-alpine" }}"
+        imagePullPolicy: {{ $img.pullPolicy | default "IfNotPresent" }}
         ports:
         - name: http
           containerPort: 80
