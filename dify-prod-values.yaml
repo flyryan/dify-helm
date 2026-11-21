@@ -34,6 +34,12 @@ image:
   pluginDaemon:
     repository: jfrog.trendmicro.com/aatf-docker-prod-local/productiq-dify-plugin-daemon
     tag: "0.2.0-local-piq.1"
+  # Dify's front proxy. The chart default is nginx:latest, which floats; pin a fixed
+  # nginx (CVE-2026-123007, CVE-2026-123633: fixed in 1.30.7) by its multi-arch index digest.
+  proxy:
+    repository: nginx
+    tag: "1.30.7-alpine@sha256:caf4e1e032a20f9c3c5e28fc7f25ffd768ad8677b4975c54193075997b3a97e3"
+    pullPolicy: IfNotPresent
 
 # API configuration
 api:
@@ -251,6 +257,11 @@ weaviate:
   proxy:
     enabled: true
     replicas: 1
+    # Same pinned nginx as the Dify proxy (the template used to hardcode nginx:1.25-alpine).
+    image:
+      repository: nginx
+      tag: "1.30.7-alpine@sha256:caf4e1e032a20f9c3c5e28fc7f25ffd768ad8677b4975c54193075997b3a97e3"
+      pullPolicy: IfNotPresent
     resources:
       requests:
         cpu: '100m'
