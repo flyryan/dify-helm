@@ -14,26 +14,32 @@
 
 # Image versions (using stable hotfix versions)
 image:
+  # All four ProductIQ Dify images share one piq number per release (piq.6 from
+  # 2026-11-22); the part before `-piq` is the upstream version each is built from.
+  # Change the four tags together.
   api:
-    # ProductIQ-patched dify-api (patches 1-5), built from TrendDifyFrontend
+    # ProductIQ-patched dify-api (patches 1-5, the patch 6 security updates and
+    # patch 7, the embedding-cache deadlock fix), built from TrendDifyFrontend
     # `dify-patches/` (see its README). The worker uses the same image. JFrog pulls
     # use `jfrog-docker-secret` on the namespace's default ServiceAccount.
     repository: jfrog.trendmicro.com/aatf-docker-prod-local/productiq-dify-api
-    tag: "1.8.1-piq.5"
-  # The ProductIQ web, sandbox and plugin-daemon images are the stock ones with
-  # security updates only (CVE-2026-111497, Node2Shell), built in TrendDifyFrontend
-  # `dify-patches/{web,sandbox,plugin-daemon}/`.
+    tag: "1.8.1-piq.6"
+  # The ProductIQ web and plugin-daemon images are the stock ones with security
+  # updates only (CVE-2026-111497, Node2Shell), built in TrendDifyFrontend
+  # `dify-patches/{web,plugin-daemon}/`. Their piq.6 tags are the piq.1 images
+  # retagged (same digests).
   web:
     repository: jfrog.trendmicro.com/aatf-docker-prod-local/productiq-dify-web
-    tag: "1.8.1-piq.1"
+    tag: "1.8.1-piq.6"
   sandbox:
-    # Also carries a rebuilt /main: the 0.2.12 source plus io_uring_enter in the
-    # JavaScript seccomp allowlist, which Node 22 needs (see dify-patches/README.md).
+    # Security updates plus a rebuilt /main: the 0.2.12 source built with Go 1.26.11
+    # and upstream dify-sandbox #300, an io_uring pre-filter that Node 22 needs
+    # (see dify-patches/README.md, Patch 6). Rollback target: 0.2.12-piq.2.
     repository: jfrog.trendmicro.com/aatf-docker-prod-local/productiq-dify-sandbox
-    tag: "0.2.12-piq.2"
+    tag: "0.2.12-piq.6"
   pluginDaemon:
     repository: jfrog.trendmicro.com/aatf-docker-prod-local/productiq-dify-plugin-daemon
-    tag: "0.2.0-local-piq.1"
+    tag: "0.2.0-local-piq.6"
   # Dify's front proxy. The chart default is nginx:latest, which floats; pin a fixed
   # nginx (CVE-2026-123007, CVE-2026-123633: fixed in 1.30.7) by its multi-arch index digest.
   proxy:
