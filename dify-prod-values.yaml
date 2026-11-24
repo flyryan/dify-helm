@@ -96,6 +96,11 @@ api:
     # document for the model (off | on | comma-separated app ids). Keep equal on worker.
     - name: PIQ_DATASET_SOURCE_LABELS
       value: "on"
+    # Largest document upload the API accepts, in MB (stock default 15). 100 so TKM can send
+    # every product PDF whole. Only dify-api checks it (FileService); the worker does not.
+    # proxy.clientMaxBodySize must stay above it: nginx measures the whole multipart request.
+    - name: UPLOAD_FILE_SIZE_LIMIT
+      value: "100"
   # Resources for 4 gevent workers — raised to stop OOMKill loop under plugin+embedding load
   resources:
     requests:
@@ -314,6 +319,9 @@ weaviate:
 
 # Proxy configuration - optimize for better performance
 proxy:
+  # nginx client_max_body_size (chart default 15m). Above api UPLOAD_FILE_SIZE_LIMIT (100 MB)
+  # so a 100 MB PDF plus its multipart wrapper passes and the API enforces the limit.
+  clientMaxBodySize: "110m"
   resources:
     requests:
       cpu: '500m'
